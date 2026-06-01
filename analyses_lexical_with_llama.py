@@ -23,13 +23,10 @@ K_VALUES = [5, 10, 15, 20, 50, 100, 200, 400]
 OUT = Path("output/lexical")
 OUT.mkdir(parents=True, exist_ok=True)
 
-# ════════════════════════════════════════════════════════════════════
-# LOAD HUMAN DATA
-# ════════════════════════════════════════════════════════════════════
+
 
 people = load_human()
 
-# --- Context lookup: target_word -> left_context ---
 context_lookup = (
     people.drop_duplicates("word.id")[["word.id", "Left context"]]
     .rename(columns={
@@ -38,9 +35,7 @@ context_lookup = (
     })
 )
 
-# ════════════════════════════════════════════════════════════════════
-# HUMAN LEXICAL DISTRIBUTIONS (compute once)
-# ════════════════════════════════════════════════════════════════════
+
 
 all_human_answers = []
 all_human_lemmas = []
@@ -58,9 +53,7 @@ for word_id, ppl in people.groupby("word.id"):
         "left_context"
     ].iloc[0]
 
-    # ------------------------------------------------------------
-    # Human lemma probabilities
-    # ------------------------------------------------------------
+
 
     answer_level = (
         ppl.assign(
@@ -100,9 +93,8 @@ for word_id, ppl in people.groupby("word.id"):
             "probability": prob,
         })
 
-    # ------------------------------------------------------------
     # Human surface-form probabilities
-    # ------------------------------------------------------------
+   
 
     answer_prob = (
         ppl.groupby(ppl["answer"].str.strip())["probability_y"]
@@ -113,9 +105,6 @@ for word_id, ppl in people.groupby("word.id"):
     human_surface_probs[word_id] = answer_prob
     human_surface_sets[word_id] = set(answer_prob.keys())
 
-# ════════════════════════════════════════════════════════════════════
-# SAVE HUMAN FILES ONCE
-# ════════════════════════════════════════════════════════════════════
 
 ha_df = pd.DataFrame(all_human_answers)
 ha_df.to_csv(OUT / "human_answers.csv", index=False)
@@ -125,19 +114,14 @@ hl_df = pd.DataFrame(all_human_lemmas)
 hl_df.to_csv(OUT / "human_lemmas.csv", index=False)
 print(f"Written {len(hl_df)} rows to {OUT / 'human_lemmas.csv'}")
 
-# ════════════════════════════════════════════════════════════════════
-# LOOP OVER MODELS
-# ════════════════════════════════════════════════════════════════════
-
+# ══
 for model_name, model_df in get_all_models().items():
 
     print(f"\n\n\n========== {model_name} ==========\n")
 
     model_slug = model_name.replace(" ", "_").replace("-", "_")
 
-    # ------------------------------------------------------------
-    # DEDUP BY LEMMA
-    # ------------------------------------------------------------
+
 
     model_sorted = model_df.sort_values(
         "probability_converted",
@@ -158,9 +142,7 @@ for model_name, model_df in get_all_models().items():
         .rename("model_lemmas")
     )
 
-    # ------------------------------------------------------------
-    # DEDUP BY SURFACE FORM
-    # ------------------------------------------------------------
+   
 
     model_surface_lists = (
         model_sorted
@@ -176,9 +158,7 @@ for model_name, model_df in get_all_models().items():
         .rename("model_surface")
     )
 
-    # ------------------------------------------------------------
-    # MAIN OVERLAP COMPUTATION
-    # ------------------------------------------------------------
+
 
     records = []
 
@@ -204,9 +184,6 @@ for model_name, model_df in get_all_models().items():
 
         for k in K_VALUES:
 
-            # ====================================================
-            # LEMMA OVERLAP
-            # ====================================================
 
             top_k_lemmas = set(model_lemmas[:k])
 
@@ -222,9 +199,7 @@ for model_name, model_df in get_all_models().items():
                 for lem in found_lemmas
             )
 
-            # ====================================================
-            # SURFACE MATCH
-            # ====================================================
+  
 
             top_k_surface = set(model_surface[:k])
 
@@ -242,10 +217,6 @@ for model_name, model_df in get_all_models().items():
 
         records.append(row)
 
-    # ════════════════════════════════════════════════════════════════
-    # SAVE PER-CONTEXT RESULTS
-    # ════════════════════════════════════════════════════════════════
-
     out = pd.DataFrame(records)
 
     out = out.merge(
@@ -254,7 +225,6 @@ for model_name, model_df in get_all_models().items():
         right_on="target_word",
     )
 
-    # Reorder columns
     cols = ["left_context", "target_word"] + [
         c for c in out.columns
         if c not in ("left_context", "target_word")
@@ -272,9 +242,6 @@ for model_name, model_df in get_all_models().items():
         f"{OUT / f'per_context_overlap_{model_slug}.csv'}"
     )
 
-    # ════════════════════════════════════════════════════════════════
-    # SUMMARY
-    # ════════════════════════════════════════════════════════════════
 
     summary_records = []
 
@@ -308,9 +275,6 @@ for model_name, model_df in get_all_models().items():
         f"{OUT / f'summary_{model_slug}.csv'}"
     )
 
-    # ════════════════════════════════════════════════════════════════
-    # PRINT SUMMARY
-    # ════════════════════════════════════════════════════════════════
 
     print(f"\n=== Mean across all contexts [{model_name}] ===\n")
 
