@@ -47,16 +47,27 @@
 ## Структура репозитория
 
 ├── analysis_entrophy.py # Анализ энтропии контекста
+
 ├── analyses_lexical_with_llama.py # Лексическое перекрытие (Llama)
+
 ├── analyses_target_with_llama.py # Анализ целевых слов (Llama)
+
 ├── analysis_feature_with_llama.py # Морфологический анализ
+
 ├── analysis_pos_corr_with_llama.py # Корреляция POS-распределений
+
 ├── analysis_pos_overlap_with_llama.py # POS_intersection@k
+
 ├── analysis_semantic_new.py # Семантические метрики (Centroid, F1)
+
 ├── filter_data_llama_6.py # Фильтрация и предобработка данных
+
 ├── pred_beam_3.ipynb # Beam search для Llama (ноутбук)
+
 ├── копия_openai_api_preds_2.ipynb # Beam search для GPT-4o-mini
+
 ├── КОМП_Монина_хэндаут.pdf # Краткий хэндаут по работе
+
 └── курсовая 3 курс.pdf # Полный текст курсовой работы
 
 
