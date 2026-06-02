@@ -27,7 +27,7 @@ from scipy import stats
 
 from filter_data_llama_6 import get_all_models, load_human
 
-# ──────────────────────────────────────────────────────────────────────
+# ─
 # Функция для получения оригинального тега pymorphy (например, 'NOUN', 'ADJF', ...)
 def get_pymorphy_tag(word: str) -> str:
     if not PYMO_AVAILABLE or not isinstance(word, str) or not word.strip():
@@ -36,7 +36,7 @@ def get_pymorphy_tag(word: str) -> str:
     pos = parsed.tag.POS
     return str(pos) if pos is not None else None   # исходный тег
 
-# ──────────────────────────────────────────────────────────────────────
+# ─
 MIN_CONTEXTS = 10
 ROOT = pathlib.Path("output/pos_corr")
 
@@ -45,7 +45,6 @@ TAGGERS = [
     ("pymorphy", "pymorphy_pos", "pymorphy_pos"),
 ]
 
-# colours per tagger×model combo
 COMBO_COLORS = {
     ("stanza",   "GPT-4o-mini"): "#2166ac",
     ("stanza",   "Llama"):       "#4393c3",
@@ -53,7 +52,6 @@ COMBO_COLORS = {
     ("pymorphy", "Llama"):       "#f4a582",
 }
 
-# ── load human once ────────────────────────────────────────────────────
 human_raw = load_human()
 
 context_lookup = (
@@ -84,7 +82,6 @@ def add_context_cols(pos_df, context_lookup):
 def run_corr(human_df, model_df, human_col, model_col, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── deduplicate ────────────────────────────────────────────────────
     human = (
         human_df.groupby(["word.id", "answer"])
         .first()
@@ -99,7 +96,6 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
         ]
     )
 
-    # ── POS matrices ───────────────────────────────────────────────────
     all_pos = sorted(
         set(human[human_col].dropna()) | set(model[model_col].dropna())
     )
@@ -116,7 +112,6 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
 
     print(f"  POS tags ({len(all_pos)}): {all_pos}")
 
-    # ── Algorithm 2: per-POS correlation ──────────────────────────────
     rows = []
     for pos in all_pos:
         h_vec = human_pos[pos].values
@@ -141,8 +136,7 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
     corr_df.to_csv(out_dir / "per_pos_correlation.csv", index=False)
     print("\n=== Algorithm 2: per-POS correlation ===")
     print(corr_df.to_string(index=False))
-
-    # ── Algorithm 3: delta-table ───────────────────────────────────────
+    # also delta table but it doesnt used in the analysis
     delta = (human_pos - model_pos).abs()
     mean_delta_per_context = delta.mean(axis=1)
     overall_mean_delta = mean_delta_per_context.mean()
@@ -164,7 +158,7 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
     print(f"  Per-context: min={mean_delta_per_context.min():.4f}, "
           f"max={mean_delta_per_context.max():.4f}")
 
-    # ── save matrices ──────────────────────────────────────────────────
+
     add_context_cols(human_pos, context_lookup).to_csv(
         out_dir / "human_pos_matrix.csv", index=False
     )
@@ -172,12 +166,10 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
         out_dir / "model_pos_matrix.csv", index=False
     )
 
-    # ── summary ────────────────────────────────────────────────────────
     pd.DataFrame({"overall_mean_delta": [round(overall_mean_delta, 4)]}).to_csv(
         out_dir / "summary.csv", index=False
     )
 
-    # ── per-output plots ───────────────────────────────────────────────
     _plot_correlation(corr_df, out_dir / "fig_correlation.png")
     _plot_delta(delta, mean_delta_per_context, overall_mean_delta,
                 out_dir / "fig_delta.png")
@@ -185,7 +177,6 @@ def run_corr(human_df, model_df, human_col, model_col, out_dir):
     return corr_df, delta, mean_delta_per_context, overall_mean_delta
 
 
-# ── plot helpers ───────────────────────────────────────────────────────
 
 def _plot_correlation(corr_df, out_path):
     corr_plot = corr_df.sort_values("pearson_r", ascending=True)
@@ -298,9 +289,6 @@ def plot_delta_all(all_delta_summary: dict, out_path: pathlib.Path):
     print(f"  Saved: {out_path}")
 
 
-# ══════════════════════════════════════════════════════════════════════
-# MAIN
-# ══════════════════════════════════════════════════════════════════════
 
 all_corr          = {}
 all_delta_summary = {}
@@ -350,7 +338,6 @@ for tagger_name, human_col, model_col in TAGGERS:
         all_corr[label]          = corr_df
         all_delta_summary[label] = overall_delta
 
-# ── combined plots ─────────────────────────────────────────────────────
 ROOT.mkdir(parents=True, exist_ok=True)
 if all_corr:
     plot_correlation_all(all_corr, ROOT / "fig_correlation_all.png")
