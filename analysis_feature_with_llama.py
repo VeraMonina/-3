@@ -45,7 +45,6 @@ OUT.mkdir(parents=True, exist_ok=True)
 
 FEATURES = ["Case", "Number", "Gender", "Tense", "Aspect", "Animacy", "VerbForm"]
 
-# ── load ───────────────────────────────────────────────────────────────
 human_raw = load_human()
 model_raw = load_gpt()
 
@@ -54,7 +53,6 @@ context_lookup = (
     .rename(columns={"word.id": "target_word", "Left context": "left_context"})
 )
 
-# ── parse feats string → dict ──────────────────────────────────────────
 # format: "Case=Nom|Number=Sing|Gender=Masc|..."  or NaN
 def parse_feats(val) -> dict:
     if not isinstance(val, str) or not val.strip():
@@ -72,11 +70,10 @@ model_raw = model_raw.copy()
 human_raw["feats_dict"] = human_raw["feats_answer"].apply(parse_feats)
 model_raw["feats_dict"] = model_raw["feats"].apply(parse_feats)
 
-# ══════════════════════════════════════════════════════════════════════
+
 # B) × TARGET ACCURACY
 # Already computed in feature_accuracy (human) / feature_intersection (model)
 # Format: list of strings like ['Case=Nom', 'Number=Sing']
-# ══════════════════════════════════════════════════════════════════════
 
 def parse_accuracy_list(val) -> list:
     if isinstance(val, list):
@@ -110,7 +107,6 @@ def parse_target_feats(val) -> dict:
 human_raw["target_feats"] = human_raw["mapped_feats_ud"].apply(parse_target_feats)
 model_raw["target_feats"] = model_raw["target_mapped_feats_ud"].apply(parse_target_feats)
 
-# ── B: accuracy per feature ────────────────────────────────────────────
 def target_accuracy_per_feature(df, acc_col, prob_col, group_col, label):
     """
     For each feature: fraction of predictions where that feature matched target.
@@ -180,11 +176,9 @@ print("\n=== B) ×Target accuracy: human vs model ===")
 print(acc_compare.to_string(index=False))
 
 
-# ══════════════════════════════════════════════════════════════════════
 # A) HUMAN × MODEL AGREEMENT
 # For each feature and context: build prob distributions over feature values,
 # compare human vs model.
-# ══════════════════════════════════════════════════════════════════════
 
 # deduplicate: one row per (context, prediction)
 human_dedup = (
@@ -239,7 +233,7 @@ for feat in FEATURES:
     h_mat = h_mat.reindex(index=all_ctx, columns=all_vals, fill_value=0)
     m_mat = m_mat.reindex(index=all_ctx, columns=all_vals, fill_value=0)
 
-    # ── A1: per-value correlation across contexts ──────────────────────
+    # ── A1: per-value correlation across contexts 
     for val in all_vals:
         h_vec = h_mat[val].values
         m_vec = m_mat[val].values
@@ -260,7 +254,7 @@ for feat in FEATURES:
             "spearman_p": round(sp, 6),
         })
 
-    # ── A2: delta per context ──────────────────────────────────────────
+    # ── A2: delta per context
     delta_mat = (h_mat - m_mat).abs()
     mean_delta_per_ctx = delta_mat.mean(axis=1)       # mean over values, per context
     mean_delta_per_val = delta_mat.mean(axis=0)       # mean over contexts, per value
@@ -285,16 +279,15 @@ for feat in FEATURES:
     )
     delta_out.to_csv(OUT / f"human_model_delta_{feat}.csv", index=False)
 
-# ── save A1 ───────────────────────────────────────────────────────────
+
 corr_df = pd.DataFrame(all_results_corr).sort_values(
     ["feature", "pearson_r"], ascending=[True, False]
 )
 corr_df.to_csv(OUT / "human_model_feature_correlation.csv", index=False)
 
-print("\n=== A1) Human × Model feature-value correlation ===")
+print("\n A1) Human × Model feature-value correlation ")
 print(corr_df.to_string(index=False))
 
-# ── save A2 ───────────────────────────────────────────────────────────
 delta_df = pd.DataFrame(all_results_delta).sort_values(
     ["feature", "mean_delta"], ascending=[True, False]
 )
@@ -303,7 +296,7 @@ delta_df.to_csv(OUT / "human_model_feature_delta.csv", index=False)
 print("\n=== A2) Human × Model feature-value delta ===")
 print(delta_df.to_string(index=False))
 
-# ── summary: one row per feature ──────────────────────────────────────
+# ── summary: one row per feature 
 summary_rows = []
 for feat in FEATURES:
     sub_corr  = corr_df[corr_df["feature"] == feat]
