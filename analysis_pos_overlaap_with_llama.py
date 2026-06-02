@@ -35,15 +35,10 @@ import pandas as pd
 
 from filter_data_llama_6 import get_all_models, load_human
 
-# ── pymorphy3 availability & helpers ──────────────────────────────────
-try:
-    import pymorphy3
+import pymorphy3
 
-    MORPH = pymorphy3.MorphAnalyzer()
-    PYMO_AVAILABLE = True
-except ImportError:
-    warnings.warn("pymorphy3 not installed. Pymorphy tagger will be skipped.")
-    PYMO_AVAILABLE = False
+MORPH = pymorphy3.MorphAnalyzer()
+
 
 
 def get_pymorphy_tag(word: str) -> str:
@@ -54,7 +49,7 @@ def get_pymorphy_tag(word: str) -> str:
     return parsed.tag.POS  # ← исходный тег, без маппинга
 
 
-# ── constants ─────────────────────────────────────────────────────────
+
 K_VALUES = [1, 2, 3, 4, 5]
 ROOT = pathlib.Path("output/pos_overlap")
 
@@ -64,7 +59,7 @@ TAGGERS = [
     ("pymorphy", "pymorphy_pos", "pymorphy_pos"),
 ]
 
-# ── load human once ────────────────────────────────────────────────────
+
 human_raw = load_human()
 
 context_lookup = (
@@ -84,7 +79,7 @@ def ranked_pos(pos_df: pd.DataFrame) -> dict:
 def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
     out_dir.mkdir(parents=True, exist_ok=True)
 
-    # ── human POS distribution ─────────────────────────────────────────
+    #  human POS distribution
     human_dedup = (
         human_df.groupby(["word.id", "answer"], as_index=False)
         .first()[["word.id", "answer", human_pos_col, "probability_y"]]
@@ -95,7 +90,7 @@ def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
         .rename(columns={"word.id": "word_id", human_pos_col: "pos", "probability_y": "weight"})
     )
 
-    # ── model POS distribution ─────────────────────────────────────────
+    #model POS distribution 
     model_sorted = model_df.sort_values("probability_converted", ascending=False)
     model_dedup = model_sorted.drop_duplicates(
         subset=["target_word_id", "prediction_cleaned"], keep="first"
@@ -118,13 +113,11 @@ def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
         )
     )
 
-    # ── rankings ───────────────────────────────────────────────────────
+  
     human_ranked = ranked_pos(human_pos)
     model_ranked = ranked_pos(model_pos)
     all_contexts = sorted(set(human_ranked) & set(model_ranked))
     print(f"  Shared contexts: {len(all_contexts)}")
-
-    # ── compute metrics ────────────────────────────────────────────────
     rows = []
     for ctx in all_contexts:
         h_rank = human_ranked[ctx]
@@ -143,7 +136,7 @@ def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
 
     results = pd.DataFrame(rows)
 
-    # ── save distributions ─────────────────────────────────────────────
+
     (
         human_pos.rename(columns={"word_id": "target_word", "pos": "upos", "weight": "probability"})
         .merge(context_lookup, on="target_word", how="left")[
@@ -159,7 +152,7 @@ def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
         .to_csv(out_dir / "model_pos_distribution.csv", index=False)
     )
 
-    # ── save per-context results ───────────────────────────────────────
+
     results_out = results.rename(columns={"word_id": "target_word"}).merge(
         context_lookup, on="target_word", how="left"
     )
@@ -168,7 +161,6 @@ def run_overlap(human_df, model_df, human_pos_col, model_pos_col, out_dir):
     ]
     results_out[cols].to_csv(out_dir / "per_context_results.csv", index=False)
 
-    # ── summary ────────────────────────────────────────────────────────
     summary_rows = []
     for k in K_VALUES:
         row = {
