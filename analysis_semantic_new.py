@@ -58,17 +58,13 @@ RED    = "#C53030"
 ORANGE = "#C05621"
 GRAY   = "#718096"
 
-# ════════════════════════════════════════════════════════════════════
-# ПАРАМЕТРЫ
-# ════════════════════════════════════════════════════════════════════
+
 WORD2VEC_PATH  = "model.bin"          # путь к ruwikiruscorpora .bin
 TOP_K_VALUES   = [1, 5, 10, 20, 50, 100]
 NN_THRESHOLDS  = [0.70, 0.80, 0.90]
 EMB_DIM        = 300
 
-# ════════════════════════════════════════════════════════════════════
-# ЗАГРУЗКА ЭМБЕДДИНГОВ
-# ════════════════════════════════════════════════════════════════════
+
 print("Загружаем ruwikiruscorpora KeyedVectors...")
 kv = KeyedVectors.load_word2vec_format(WORD2VEC_PATH, binary=True)
 print(f"  Словарь: {len(kv)} токенов")
@@ -88,9 +84,7 @@ def get_vec(lemma: str, upos: str) -> np.ndarray:
     return np.zeros(EMB_DIM, dtype=float)
 
 
-# ════════════════════════════════════════════════════════════════════
-# ЗАГРУЗКА ДАННЫХ
-# ════════════════════════════════════════════════════════════════════
+
 people = load_human()
 
 context_lookup = (
@@ -115,9 +109,7 @@ human_keys = set(
 
 print(f"Human: {len(human_deduped)} записей, {len(human_keys)} уникальных лемм×UPOS")
 
-# ════════════════════════════════════════════════════════════════════
-# ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
-# ════════════════════════════════════════════════════════════════════
+
 
 def weighted_centroid(vecs: np.ndarray, probs: np.ndarray) -> np.ndarray:
     """Взвешенное среднее векторов, нормализованное до единичной длины."""
@@ -157,9 +149,7 @@ def centroid_similarity(h_probs: np.ndarray, h_vecs: np.ndarray,
     return float(np.dot(h_cent, m_cent))
 
 
-# ════════════════════════════════════════════════════════════════════
-# ОСНОВНОЙ ЦИКЛ: по моделям
-# ════════════════════════════════════════════════════════════════════
+
 
 all_results = {}
 
@@ -210,7 +200,6 @@ for model_name, model_df in get_all_models().items():
         if len(h_sub) == 0 or len(m_sub) == 0:
             continue
 
-        # ── Human vectors ────────────────────────────────────────────
         h_vecs = np.array([
             vec_cache.get(
                 (row["lemma_answer"].lower(), row["upos_answer"].upper()),
@@ -229,7 +218,7 @@ for model_name, model_df in get_all_models().items():
         h_probs = h_probs[nonzero_h]
         h_probs = h_probs / (h_probs.sum() + 1e-9)
 
-        # ── Model vectors (все, потом режем до top-k) ─────────────────
+        # Model vectors 
         m_sub_sorted = m_sub.sort_values(
             "probability_converted", ascending=False
         ).reset_index(drop=True)
@@ -249,7 +238,7 @@ for model_name, model_df in get_all_models().items():
         m_vecs_all  = m_vecs_all[nonzero_m]
         m_probs_all = m_probs_all[nonzero_m]
 
-        # ── Метрики для каждого top-k ─────────────────────────────────
+  
         for k in TOP_K_VALUES:
             k_eff = min(k, len(m_vecs_all))
             m_vecs  = m_vecs_all[:k_eff]
@@ -281,7 +270,7 @@ for model_name, model_df in get_all_models().items():
 
     all_results[model_name] = results_df
 
-    # ── Сводная таблица по top-k ──────────────────────────────────────
+
     summary_cols = ["centroid_sim"] + [
         f"nn_coverage_{int(t*100)}" for t in NN_THRESHOLDS
     ]
@@ -297,9 +286,6 @@ for model_name, model_df in get_all_models().items():
     print("  " + summary.to_string(index=False))
 
 
-# ════════════════════════════════════════════════════════════════════
-# ГРАФИКИ
-# ════════════════════════════════════════════════════════════════════
 
 model_colors = {"GPT-4o-mini": RED, "Llama": ORANGE}
 
@@ -327,7 +313,7 @@ plt.savefig(OUT / "fig_centroid_by_k.png", bbox_inches="tight")
 plt.close()
 print("\nSaved fig_centroid_by_k.png")
 
-# ── 2. NN Coverage @ threshold vs top-k ─────────────────────────────
+#NN Coverage @ threshold vs top-k
 for thr in NN_THRESHOLDS:
     col = f"nn_coverage_{int(thr*100)}"
     fig, ax = plt.subplots(figsize=(8, 5))
@@ -356,7 +342,7 @@ for thr in NN_THRESHOLDS:
     plt.close()
     print(f"Saved {fname}")
 
-# ── 3. Scatter: centroid_sim vs H_human (если энтропия посчитана) ────
+# 
 entropy_path = Path("output/entropy/per_context_entropy_human.csv")
 if entropy_path.exists():
     entropy_df = pd.read_csv(entropy_path)
